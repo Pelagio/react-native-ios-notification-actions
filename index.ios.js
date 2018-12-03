@@ -3,11 +3,9 @@ const { RNNotificationActions } = NativeModules;
 
 let actions = {};
 
-todoComplete = () => {
-  console.info(
-    "TODO - implement complete callbacks for objective-c (the callback was already called in this case)"
-  );
-};
+export function handleActionCompleted() {
+  RNNotificationActions.callCompletionHandler();
+}
 
 export class Action {
   constructor(opts, onComplete) {
@@ -19,7 +17,7 @@ export class Action {
     NativeAppEventEmitter.addListener("notificationActionReceived", body => {
       if (body.identifier === opts.identifier) {
         //console.info('got action interaction!', body);
-        onComplete(body, todoComplete);
+        onComplete(body, handleActionCompleted);
       }
     });
   }
@@ -58,5 +56,6 @@ export default {
   Action,
   Category,
   updateCategories,
-  getAction
+  getAction,
+  handleActionCompleted
 };
