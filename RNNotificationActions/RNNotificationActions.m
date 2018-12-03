@@ -1,4 +1,5 @@
 @import UIKit;
+#define NSFoundationVersionNumber_iOS_9_x_Max 1299
 #import "RNNotificationActions.h"
 #import "RNNotificationActionsManager.h"
 
@@ -104,18 +105,46 @@ RCT_EXPORT_MODULE();
 
 RCT_EXPORT_METHOD(updateCategories:(NSArray *)json)
 {
-    NSMutableArray *categories = [[NSMutableArray alloc] init];
-    // Create the category
-    for (NSDictionary *categoryJSON in json) {
-        [categories addObject:[self categoryFromJSON:categoryJSON]];
+    if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
+        NSMutableArray *categories = [[NSMutableArray alloc] init];
+        // Create the category
+        for (NSDictionary *categoryJSON in json) {
+            [categories addObject:[self categoryFromJSON:categoryJSON]];
+        }
+        
+        // Get the current types
+        UIUserNotificationSettings *settings;
+        UIUserNotificationType types = settings.types;
+        
+        // Update the settings for these types
+        [[UIApplication sharedApplication] registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:types categories:[NSSet setWithArray:categories]]];
+
+    } else {
+        NSMutableArray *categories = [[NSMutableArray alloc] init];
+        for (NSDictionary *categoryJSON in json) {
+            NSMutableArray *actions = [[NSMutableArray alloc] init];
+            NSString *categoryName = categoryJSON[@"identifier"];
+            for (NSDictionary *actionJSON in [RCTConvert NSArray:categoryJSON[@"actions"]]) {
+                UNNotificationActionOptions option = UNNotificationActionOptionNone;
+                NSString *optionString = actionJSON[@"activationMode"];
+                
+                if ([optionString compare:@"background"]) {
+                    option = UNNotificationActionOptionNone;
+                } else {
+                    option = UNNotificationActionOptionForeground;
+                }
+                
+                UNNotificationAction *ActionBtn = [UNNotificationAction actionWithIdentifier:actionJSON[@"identifier"] title:actionJSON[@"title"] options:option];
+                [actions addObject:ActionBtn];
+            }
+            UNNotificationCategory *category = [UNNotificationCategory categoryWithIdentifier:categoryName actions:actions intentIdentifiers:@[] options:UNNotificationCategoryOptionNone];
+            [categories addObject:category];
+
+        }
+
+        NSSet *categoriesSet = [NSSet setWithArray:categories];
+        [[UNUserNotificationCenter currentNotificationCenter] setNotificationCategories:categoriesSet];
     }
-    
-    // Get the current types
-    UIUserNotificationSettings *settings;
-    UIUserNotificationType types = settings.types;
-    
-    // Update the settings for these types
-    [[UIApplication sharedApplication] registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:types categories:[NSSet setWithArray:categories]]];
 }
 
 RCT_EXPORT_METHOD(callCompletionHandler)
